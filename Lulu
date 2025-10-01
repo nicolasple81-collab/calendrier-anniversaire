@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calendrier d'anniversaire — Calendrier interactif</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#f7f8f9;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent:#111827;
+      --accent-2:#374151;
+      --glass: rgba(255,255,255,0.6);
+      --shadow: 0 6px 18px rgba(15,23,42,0.08);
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#eef2f6);min-height:100vh;color:var(--accent-2);display:flex;align-items:center;justify-content:center;padding:28px}
+
+    .wrap{width:1100px;max-width:96vw}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .title{display:flex;flex-direction:column}
+    h1{margin:0;font-weight:700;color:var(--accent);letter-spacing:-0.4px}
+    p.lead{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+    .controls{display:flex;gap:8px;align-items:center}
+    .btn{background:var(--card);border:1px solid #e6e9ee;padding:8px 12px;border-radius:10px;cursor:pointer;box-shadow:var(--shadow);font-weight:600}
+    .btn.secondary{background:transparent;border:1px solid transparent;color:var(--muted);font-weight:500}
+
+    .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+    @media (max-width:920px){.grid{grid-template-columns:repeat(4,1fr)}}
+    @media (max-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
+
+    .card{background:linear-gradient(180deg,var(--card),#fbfdff);border-radius:12px;padding:18px;min-height:108px;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;cursor:pointer;position:relative;overflow:hidden;border:1px solid rgba(15,23,42,0.04);box-shadow:var(--shadow);transition:transform .18s ease,box-shadow .18s ease}
+    .card:hover{transform:translateY(-6px)}
+    .num{font-weight:700;font-size:20px;color:var(--accent)}
+    .sub{font-size:12px;color:var(--muted);margin-top:8px}
+
+    /* subtle ribbon for current day (all days are openable but visual hint) */
+    .ribbon{position:absolute;right:12px;top:12px;background:transparent;padding:6px 8px;border-radius:999px;border:1px solid rgba(17,24,39,0.06);font-size:11px;color:var(--muted)}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:linear-gradient(180deg,rgba(8,10,14,0.45),rgba(8,10,14,0.55));display:none;align-items:center;justify-content:center;padding:18px}
+    .modal{width:760px;max-width:96vw;background:var(--card);border-radius:14px;padding:20px;box-shadow:0 20px 50px rgba(2,6,23,0.5);border:1px solid rgba(15,23,42,0.06)}
+    .modal h2{margin:0 0 8px;font-size:20px}
+    .modal .date{color:var(--muted);font-size:13px;margin-bottom:12px}
+    .items{display:flex;flex-direction:column;gap:12px}
+    .item{background:linear-gradient(180deg,#fbfdff,var(--glass));padding:12px;border-radius:10px;border:1px solid rgba(2,6,23,0.04)}
+    .item h3{margin:0;font-size:14px}
+    .item p{margin:6px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+
+    .modal footer{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
+    .small{font-size:12px;color:var(--muted)}
+
+    .actions{display:flex;gap:8px}
+    .link-like{background:transparent;border:0;color:#0b74f2;cursor:pointer;font-weight:600}
+
+    /* tiny help area */
+    .hint{margin-top:14px;font-size:13px;color:var(--muted)}
+
+    /* closed state visual */
+    .locked{opacity:0.95}
+    .badge{display:inline-block;padding:6px 8px;border-radius:8px;background:#f3f4f6;color:var(--muted);font-weight:600;font-size:12px}
+
+    footer.pagefoot{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="title">
+        <h1>Calendrier d'anniversaire — Edition élégante</h1>
+        <p class="lead">Clique sur un jour pour révéler les 2 surprises — partage le fichier ou héberge-le pour qu'elle ouvre les cases.</p>
+      </div>
+      <div class="controls">
+        <button class="btn" id="shuffle">Réorganiser l’ordre</button>
+        <button class="btn" id="download">Télécharger HTML</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="grid" id="grid"></section>
+      <div class="hint">Astuce : pour personnaliser les textes, édite la variable <code>days</code> dans le fichier HTML (section &quot;Données&quot;).</div>
+    </main>
+
+    <footer class="pagefoot">Créé pour ton amie — sobre & élégant. Besoin d'aide pour l'héberger ? Dis-moi.</footer>
+
+    <!-- Modal -->
+    <div class="modal-backdrop" id="backdrop" aria-hidden>
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <h2 id="modal-title">Jour <span id="modal-day">—</span></h2>
+        <div class="date" id="modal-date">30 octobre — journée spéciale</div>
+        <div class="items" id="modal-items"></div>
+        <footer>
+          <div class="small">Partage ce lien avec elle ou envoie le fichier HTML.</div>
+          <div class="actions">
+            <button class="btn" id="close">Fermer</button>
+            <button class="btn secondary" id="copy">Copier message rapide</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+      Données : modifie ici les textes. Chaque entrée contient deux idées (title + description).
+      Gardez le format : {day: 1, title: 'Titre court', items: [{t:'', d:''},{t:'', d:''}]}
+    */
+
+    const days = [
+      {day:1, title:'1 octobre', items:[
+        {t:'Citation d’amitié', d:'"Les amitiés vraies sont des refuges pour l’âme." — Un message bref qui lui rappelle votre lien.'},
+        {t:'Photo souvenir', d:'Une photo de vous deux + une courte légende qui explique le souvenir.'}
+      ]},
+      {day:2, title:'2 octobre', items:[
+        {t:'Playlist spéciale', d:'Un lien ou la liste des 6-8 chansons que tu as choisies pour elle.'},
+        {t:'Message vocal', d:'Enregistre un petit vocal (10–20s) : un souhait ou une blague.'}
+      ]},
+      {day:3, title:'3 octobre', items:[
+        {t:'5 choses que j’admire', d:'Liste courte de qualités que tu admires chez elle.'},
+        {t:'GIF/meme', d:'Un GIF rigolo qui rappelle un moment partagé.'}
+      ]},
+      {day:4, title:'4 octobre', items:[
+        {t:'Quiz fun', d:'Ton mini-quiz : ex "Si tu étais un dessert, lequel ?" et la réponse que tu penses.'},
+        {t:'Vidéo favorite', d:'Un lien YouTube/TikTok qui te fait penser à elle.'}
+      ]},
+      {day:5, title:'5 octobre', items:[
+        {t:'Photo futur voyage', d:'Une image d’un lieu que vous aimerez visiter ensemble.'},
+        {t:'Blague personnalisée', d:'Une vanne inside qui la fera sourire.'}
+      ]},
+      {day:6, title:'6 octobre', items:[
+        {t:'Mini-défi', d:'Prends une photo d’un objet jaune et envoie-la.'},
+        {t:'Chanson souvenir', d:'Une chanson liée à un souvenir partagé.'}
+      ]},
+      {day:7, title:'7 octobre', items:[
+        {t:'Petit poème', d:'Un court poème ou acrostiche avec son prénom.'},
+        {t:'Moodboard', d:'Une image esthétique/pinterest qui te fait penser à elle.'}
+      ]},
+      {day:8, title:'8 octobre', items:[
+        {t:'Devinette', d:'Une énigme courte à résoudre (fun).'},
+        {t:'Anecdote', d:'Raconte une anecdote drôle que tu n’avais jamais partagée.'}
+      ]},
+      {day:9, title:'9 octobre', items:[
+        {t:'Dessin simple', d:'Un petit dessin scanné/photo (même simple) ou un ASCII art.'},
+        {t:'Objet symbole', d:'Une photo d’un objet symbolique et l’explication.'}
+      ]},
+      {day:10, title:'10 octobre', items:[
+        {t:'Recette à faire en visio', d:'Une recette courte pour cuisiner ensemble via appel.'},
+        {t:'Mini-vidéo', d:'Un clip de toi qui lui envoie un compliment.'}
+      ]},
+      {day:11, title:'11 octobre', items:[
+        {t:'3 films/séries', d:'Trois recommandations avec brèves raisons.'},
+        {t:'Photo enfantine', d:'Une photo de toi enfant + une légende drôle.'}
+      ]},
+      {day:12, title:'12 octobre', items:[
+        {t:'Montage visage-celeb', d:'Un montage rigolo (ton visage sur une célébrité).'},
+        {t:'Horoscope inventé', d:'Un horoscope personnalisé et drôle.'}
+      ]},
+      {day:13, title:'13 octobre', items:[
+        {t:'Clin d’oreille musical', d:'Chante 15–20s d’une chanson et enregistre.'},
+        {t:'Photo quotidienne', d:'Une photo prise aujourd’hui + commentaire.'}
+      ]},
+      {day:14, title:'14 octobre', items:[
+        {t:'Citation humour', d:'Une citation drôle qui colle à sa personnalité.'},
+        {t:'Devinette perso', d:'Une question sur un souvenir commun à deviner.'}
+      ]},
+      {day:15, title:'15 octobre', items:[
+        {t:'Carte virtuelle', d:'Un lien ou image d’une carte créée pour elle.'},
+        {t:'Mini-playlist', d:'3 morceaux pour la remonter le moral.'}
+      ]},
+      {day:16, title:'16 octobre', items:[
+        {t:'Photo rétro', d:'Une photo souvenir avec filtre rétro.'},
+        {t:'Choisis entre', d:'Un jeu de choix (ex : thé vs café) à envoyer.'}
+      ]},
+      {day:17, title:'17 octobre', items:[
+        {t:'Vidéo souvenir', d:'Une vidéo où tu racontes un souvenir commun.'},
+        {t:'Paysage à visiter', d:'Photo d’un lieu + promesse de l’y emmener.'}
+      ]},
+      {day:18, title:'18 octobre', items:[
+        {t:'Blague en image', d:'Un meme/PNG drôle.'},
+        {t:'Défi tendance', d:'Propose un petit défi TikTok à faire ensemble.'}
+      ]},
+      {day:19, title:'19 octobre', items:[
+        {t:'Liste d’envies', d:'10 choses à faire ensemble un jour.'},
+        {t:'Capture drôle', d:'Screenshot d’un moment comique de vos messages.'}
+      ]},
+      {day:20, title:'20 octobre', items:[
+        {t:'Chanson dédiée', d:'Une chanson + explication pourquoi.'},
+        {t:'Montage drôle', d:'Un montage photo rigolo.'}
+      ]},
+      {day:21, title:'21 octobre', items:[
+        {t:'Citation amitié', d:'Une citation touchante sur l’amitié.'},
+        {t:'Imitation', d:'Un message vocal où tu imites quelqu’un (amical).'}
+      ]},
+      {day:22, title:'22 octobre', items:[
+        {t:'Mood-image', d:'Image esthétique (moodboard) représentant son style.'},
+        {t:'Vlog repas', d:'Une photo de ton repas du jour + un commentaire drôle.'}
+      ]},
+      {day:23, title:'23 octobre', items:[
+        {t:'Emoji qui te décrit', d:'Choisis un emoji et explique pourquoi.'},
+        {t:'Quiz Google Forms', d:'Un mini-quiz en ligne fait par toi.'}
+      ]},
+      {day:24, title:'24 octobre', items:[
+        {t:'Animal mignon', d:'Photo d’un animal + dédicace.'},
+        {t:'3 raisons uniques', d:'Trois qualités qui la rendent unique.'}
+      ]},
+      {day:25, title:'25 octobre', items:[
+        {t:'Horoscope spécial', d:'Un horoscope imaginaire pour sa journée.'},
+        {t:'Mot caché', d:'Devinette dont chaque réponse révèle une lettre.'}
+      ]},
+      {day:26, title:'26 octobre', items:[
+        {t:'Chasse au trésor', d:'Indices menant à une surprise en lien (ex: vidéo privée).'},
+        {t:'Mini-montage', d:'Clip court (10s) de vos photos.'}
+      ]},
+      {day:27, title:'27 octobre', items:[
+        {t:'Collage digital', d:'Un collage de vos meilleurs souvenirs.'},
+        {t:'Objet-souvenir', d:'Photo et texte expliquant ce que l’objet signifie.'}
+      ]},
+      {day:28, title:'28 octobre', items:[
+        {t:'Top 10 chansons', d:'Liste de 10 titres qui te font penser à elle.'},
+        {t:'Mini-BD', d:'Une petite BD/meme que tu as créée.'}
+      ]},
+      {day:29, title:'29 octobre', items:[
+        {t:'Vidéo collectif', d:'Vidéo de toi/amis disant "presque joyeux anniversaire"'},
+        {t:'Compte à rebours', d:'Message rappelant qu’il reste 1 jour.'}
+      ]},
+      {day:30, title:'30 octobre — Son anniversaire', items:[
+        {t:'Message émouvant', d:'Un long message sincère expliquant combien elle compte pour toi.'},
+        {t:'Montage final', d:'Un montage photo/vidéo-résumé de votre amitié.'}
+      ]}
+    ];
+
+    // Build grid
+    const grid = document.getElementById('grid');
+
+    function renderGrid(list){
+      grid.innerHTML = '';
+      list.forEach(d => {
+        const el = document.createElement('button');
+        el.className = 'card';
+        el.setAttribute('data-day', d.day);
+        el.innerHTML = `
+          <div>
+            <div class="num">${d.day}</div>
+            <div class="sub">${d.title}</div>
+          </div>
+          <div class="ribbon">Ouvrir</div>
+        `;
+        el.addEventListener('click', ()=>openModal(d));
+        grid.appendChild(el);
+      });
+    }
+
+    function openModal(d){
+      document.getElementById('modal-day').textContent = d.day;
+      document.getElementById('modal-date').textContent = d.title;
+      const items = document.getElementById('modal-items');
+      items.innerHTML = '';
+      d.items.forEach((it, idx)=>{
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `<h3>${idx+1}. ${it.t}</h3><p>${it.d}</p>`;
+        items.appendChild(div);
+      });
+      document.getElementById('backdrop').style.display = 'flex';
+      // accessibility focus
+      document.getElementById('close').focus();
+    }
+
+    document.getElementById('close').addEventListener('click', ()=>{
+      document.getElementById('backdrop').style.display = 'none';
+    });
+
+    // copy a short message to clipboard
+    document.getElementById('copy').addEventListener('click', ()=>{
+      const day = document.getElementById('modal-day').textContent;
+      const title = document.getElementById('modal-date').textContent;
+      const txt = `${title} — Voici une petite surprise pour toi 💌`;
+      navigator.clipboard.writeText(txt).then(()=>{
+        alert('Message rapide copié dans le presse-papiers !');
+      }, ()=>{alert('Impossible de copier — copie manuellement.')});
+    });
+
+    // Shuffle order (useful si tu veux mélanger les cases)
+    document.getElementById('shuffle').addEventListener('click', ()=>{
+      const shuffled = [...days].sort(()=>Math.random()-0.5);
+      renderGrid(shuffled);
+    });
+
+    // Download current HTML: creates a blob of the page's source and downloads it.
+    document.getElementById('download').addEventListener('click', ()=>{
+      const doctype = '<!doctype html>\n';
+      const html = document.documentElement.outerHTML;
+      const blob = new Blob([doctype + html], {type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'calendrier-anniversaire.html';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    // initial render
+    renderGrid(days);
+  </script>
+
+  <!--
+    Instructions rapides :
+    - Ouvre ce fichier localement (double-clic) ou héberge-le (GitHub Pages, Netlify, etc.).
+    - Pour personnaliser les textes, cherche la variable `days` dans le code et modifie les titres/descr.
+    - Tu peux remplacer des descriptions par des liens (YouTube, Spotify) ou insérer des iframes.
+    - Si tu veux que certaines cases n'ouvrent que le jour même, je peux ajouter un verrouillage par date.
+  -->
+</body>
+</html>
