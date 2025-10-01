@@ -307,12 +307,4 @@
     renderGrid(days);
   </script>
 
-  <!--
-    Instructions rapides :
-    - Ouvre ce fichier localement (double-clic) ou héberge-le (GitHub Pages, Netlify, etc.).
-    - Pour personnaliser les textes, cherche la variable `days` dans le code et modifie les titres/descr.
-    - Tu peux remplacer des descriptions par des liens (YouTube, Spotify) ou insérer des iframes.
-    - Si tu veux que certaines cases n'ouvrent que le jour même, je peux ajouter un verrouillage par date.
-  -->
-</body>
-</html>
+  
